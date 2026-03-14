@@ -31,24 +31,24 @@ function getInitials(name = '') {
 }
 
 const SIZE_MAP = {
-  xs:  { outer: 28,  font: 10, border: 1 },
-  sm:  { outer: 36,  font: 13, border: 2 },
-  md:  { outer: 48,  font: 17, border: 2 },
-  lg:  { outer: 72,  font: 26, border: 3 },
-  xl:  { outer: 96,  font: 34, border: 4 },
+  xs: { outer: 28, font: 10, border: 1 },
+  sm: { outer: 36, font: 13, border: 2 },
+  md: { outer: 48, font: 17, border: 2 },
+  lg: { outer: 72, font: 26, border: 3 },
+  xl: { outer: 96, font: 34, border: 4 },
 };
 
 const TeamAvatar = ({ team, size = 'md', className = '' }) => {
-  const config  = SIZE_MAP[size] || SIZE_MAP.md;
-  const idx     = hashStr((team?.id || '') + (team?.name || '')) % GRADIENTS.length;
-  const g       = GRADIENTS[idx];
+  const config = SIZE_MAP[size] || SIZE_MAP.md;
+  const idx = hashStr((team?.id || '') + (team?.name || '')) % GRADIENTS.length;
+  const g = GRADIENTS[idx];
   const initials = getInitials(team?.name);
 
   return (
     <div
       className={cn('rounded-full flex-shrink-0 flex items-center justify-center select-none font-black relative transition-transform duration-300', className)}
       style={{
-        width:  config.outer,
+        width: config.outer,
         height: config.outer,
         background: team?.avatar ? 'rgba(255,255,255,0.05)' : `linear-gradient(135deg, ${g.from}, ${g.to})`,
         boxShadow: team?.avatar ? 'none' : `0 4px 15px ${g.shadow}`,
@@ -59,7 +59,7 @@ const TeamAvatar = ({ team, size = 'md', className = '' }) => {
       }}
     >
       {team?.avatar || initials}
-      
+
       {/* Decorative inner ring for non-emoji avatars */}
       {!team?.avatar && (
         <div className="absolute inset-1 rounded-full border border-white/10 pointer-events-none" />

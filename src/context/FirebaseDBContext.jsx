@@ -73,8 +73,10 @@ export const FirebaseDBProvider = ({ children }) => {
           ...data,
           criteria: (data.criteria && data.criteria.length > 0) ? data.criteria : DEFAULT_EVENT_DATA.criteria
         });
+        setLoading(false);
       } else {
         setEventData(DEFAULT_EVENT_DATA);
+        setLoading(false);
       }
     }, (error) => {
       console.warn("Firestore Error:", error.message);
@@ -94,6 +96,7 @@ export const FirebaseDBProvider = ({ children }) => {
       } else {
         setTeams([]);
       }
+      setLoading(false);
     });
 
     const unsubScores = onSnapshot(getEventDoc("scores"), (docSnap) => {
@@ -104,21 +107,31 @@ export const FirebaseDBProvider = ({ children }) => {
       }
     });
 
-    // 🔒 RESTRICTED: Only fetch Judges & Subadmins if authorized
-    let unsubJudges = () => { };
+    // 🔒 RESTRICTED: Only fetch Subadmins if authorized
     let unsubSubadmins = () => { };
 
+    // Judges are now public (for leaderboard breakdown)
+    const unsubJudges = onSnapshot(getEventDoc("judges"), (docSnap) => {
+      if (docSnap.exists()) {
+        const rawList = docSnap.data().list || [];
+        if (auth?.type === 'admin') {
+          setJudges(rawList);
+        } else {
+          // Public view: Remove passcodes
+          setJudges(rawList.map(({ passcode, ...safeData }) => safeData));
+        }
+      } else {
+        setJudges([]);
+      }
+    });
+
     if (auth?.type === 'admin') {
-      unsubJudges = onSnapshot(getEventDoc("judges"), (docSnap) => {
-        if (docSnap.exists()) setJudges(docSnap.data().list || []);
-        else setJudges([]);
-      });
       unsubSubadmins = onSnapshot(getEventDoc("subadmins"), (docSnap) => {
         if (docSnap.exists()) setSubadmins(docSnap.data().list || []);
       });
     }
 
-    const timeout = setTimeout(() => setLoading(false), 1000);
+    // We move setLoading(false) to inside the team snapshot for real synchronization
 
     return () => {
       unsubEvent();
@@ -126,7 +139,6 @@ export const FirebaseDBProvider = ({ children }) => {
       unsubScores();
       unsubJudges();
       unsubSubadmins();
-      clearTimeout(timeout);
     };
   }, [activeEventId, auth?.type]);
 

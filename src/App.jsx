@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { FirebaseDBProvider } from './context/FirebaseDBContext';
 import Navbar from './components/layout/Navbar';
+import Footer from './components/layout/Footer';
 import Leaderboard from './pages/Leaderboard';
 import Admin from './pages/Admin';
 import Judge from './pages/Judge';
@@ -93,6 +94,7 @@ function App() {
               </Route>
             </Routes>
           </main>
+          <Footer />
         </div>
       </BrowserRouter>
     </FirebaseDBProvider>

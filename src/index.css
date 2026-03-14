@@ -6,21 +6,21 @@
   --color-primary: #BD9F67;
   --color-secondary: #243137;
   --color-accent: #1a2529;
-  
+
   /* Text Colors */
   --color-text-solid: #FFFFFF;
   --color-text-muted: rgba(255, 255, 255, 0.6);
-  
+
   /* Backgrounds */
   --color-bg-main: var(--color-secondary);
   --color-bg-card: var(--color-accent);
-  
+
   /* Fonts */
   --font-sans: 'Inter', sans-serif;
   --font-outfit: 'Outfit', sans-serif;
   --font-heading: var(--font-outfit);
   --font-body: var(--font-sans);
-  
+
   /* Custom Utilities */
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
@@ -41,7 +41,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-heading);
   }
 
@@ -100,17 +105,17 @@
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-accent);
+  background: var(--color-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #34444d;
-  border-radius: 10px;
+  background: #BD9F67;
+  border-radius: 100px;
+  border: 3px solid var(--color-secondary);
 }
 
 ::-webkit-scrollbar-thumb:hover {

@@ -1,83 +1,262 @@
-/* eslint-disable no-unused-vars */
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Trophy, Settings, Gavel, LogOut, LogIn, Calendar, User } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import React, { useState, useEffect, useMemo } from "react";
+import { Menu, X, LogOut, User, Trophy, LogIn } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMockDB } from '../../context/FirebaseDBContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 const Navbar = () => {
-  const { eventData, auth, logout, activeEventId } = useMockDB();
+  const { auth, logout, activeEventId, eventData } = useMockDB();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const links = [
-    { name: 'All Events', to: '/events', icon: Calendar }
-  ];
-  if (activeEventId) {
-    links.push({ name: 'Leaderboard', to: `/${activeEventId}/leaderboard`, icon: Trophy });
-    if (auth?.type === 'judge') {
-      links.push({ name: 'Judge', to: `/${activeEventId}/judge`, icon: Gavel });
-    } else if (auth?.type === 'admin') {
-      links.push({ name: 'Admin', to: `/${activeEventId}/admin`, icon: Settings });
-    } else if (auth?.type === 'team') {
-      links.push({ name: 'My Workspace', to: `/${activeEventId}/profile`, icon: User });
+  const navLinks = useMemo(() => {
+    // Standard Website Links
+    const base = [
+      { name: "Events", href: "/events" },
+    ];
+
+    // Event-Specific Links (Floating at the end)
+    const eventLinks = [];
+    if (activeEventId && location.pathname.includes(activeEventId)) {
+      eventLinks.push({ name: "Leaderboard", href: `/${activeEventId}/leaderboard`, icon: Trophy });
     }
-  }
+
+    // Workspace Links
+    const workspaceLinks = [];
+    if (auth && activeEventId) {
+      if (auth.type === 'team') workspaceLinks.push({ name: "Workspace", href: `/${activeEventId}/profile`, icon: User });
+      else if (auth.type === 'judge') workspaceLinks.push({ name: "Judging", href: `/${activeEventId}/judge`, icon: User });
+      else if (auth.type === 'admin') workspaceLinks.push({ name: "Admin", href: `/${activeEventId}/admin`, icon: User });
+    }
+
+    return { base, eventLinks, workspaceLinks };
+  }, [auth, activeEventId, location.pathname]);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
+  }, [isMobileMenuOpen]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
+    setIsMobileMenuOpen(false);
   };
 
-  return (
-    <nav className="w-full h-20 fixed top-0 left-0 z-50 glass-card flex items-center justify-between px-6 lg:px-12 border-b border-white/5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 flex items-center justify-center overflow-hidden rounded-lg bg-accent/50 p-1 border border-white/10">
-          <img src="/ecell_logo.jpg" alt="E-Cell Logo" className="w-full h-full object-contain mix-blend-screen" />
-        </div>
-        <div className="cursor-pointer" onClick={() => navigate('/events')}>
-          <h1 className="text-xl font-bold text-text-solid tracking-wide gold-gradient-text">E-Cell GEHU</h1>
-          <p className="text-[10px] text-text-muted font-medium uppercase tracking-[0.2em]">{activeEventId ? eventData?.name : 'Leaderboard Hub'}</p>
-        </div>
+  const Logo = ({ showText = true }) => (
+    <div className="flex items-center space-x-3 group">
+      <div className="relative">
+        <img
+          src="/ecell_logo.jpg"
+          alt="E-Cell Logo"
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[#BD9F67]/20 transition-all duration-500 group-hover:ring-[#BD9F67] group-hover:scale-105 shadow-xl"
+        />
+        <div className="absolute inset-0 rounded-full bg-[#BD9F67]/5 opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
       </div>
+      {showText && (
+        <div className="flex flex-col">
+          <span className="text-xl sm:text-2xl font-black text-[#BD9F67] tracking-tight leading-none mb-0.5">
+            Entrepreneurship Cell
+          </span>
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <span className="text-[7.5px] sm:text-[9px] text-white/40 font-black uppercase tracking-[0.25em] whitespace-nowrap animate-fadeIn">
+              Innovate • Inspire • Impact
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
-      <div className="flex items-center gap-2">
-        {links.map(({ name, to, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
-                isActive
-                  ? "bg-primary text-secondary shadow-[0_0_15px_rgba(189,159,103,0.3)]"
-                  : "text-text-muted hover:text-text-solid hover:bg-white/5"
-              )
-            }
+  return (
+    <header>
+      {/* Navbar */}
+      <nav
+        className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${scrolled
+          ? "backdrop-blur-xl bg-[#243137]/90 shadow-[0_15px_40px_rgba(0,0,0,0.3)] border-b border-[#BD9F67]/30 py-0"
+          : "backdrop-blur-lg bg-[#243137]/70 border-b border-white/5 py-1"
+          }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16 sm:h-16">
+            <Link to="/events" className="hover:opacity-80 transition-opacity">
+              <Logo />
+            </Link>
+
+            {/* Desktop Nav */}
+            <div className="hidden md:flex items-center space-x-1">
+              {/* Core Links */}
+              <div className="flex items-center">
+                {navLinks.base.map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={`relative px-4 py-2 text-[10px] font-black tracking-[0.25em] uppercase transition-all duration-500 group flex items-center gap-2 ${location.pathname === link.href ? "text-[#BD9F67]" : "text-white/50 hover:text-white"
+                      }`}
+                  >
+                    {link.name}
+                    <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] bg-[#BD9F67] transition-all duration-700 shadow-[0_0_15px_rgba(189,159,103,0.8)] ${location.pathname === link.href ? "w-4" : "w-0 group-hover:w-4"
+                      }`}></span>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="h-6 w-px bg-white/10 mx-4" />
+
+              {/* Contextual Links */}
+              <div className="flex items-center space-x-2 mr-6">
+                {[...navLinks.eventLinks, ...navLinks.workspaceLinks].map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className={`relative px-5 py-2 text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-500 group flex items-center gap-2 rounded-xl border ${location.pathname === link.href
+                      ? "text-[#BD9F67] border-[#BD9F67]/50 bg-[#BD9F67]/5 shadow-[0_0_20px_rgba(189,159,103,0.1)]"
+                      : "text-white/60 border-white/5 bg-white/[0.03] hover:text-[#BD9F67] hover:border-[#BD9F67]/30 hover:bg-[#BD9F67]/5"}`}
+                  >
+                    {link.icon && <link.icon size={13} className="transition-transform group-hover:scale-110" />}
+                    {link.name}
+                  </Link>
+                ))}
+              </div>
+
+              {auth ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-6 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full hover:bg-red-500 hover:text-white transition-all duration-500 group shadow-lg"
+                >
+                  <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" />
+                  Terminal Exit
+                </button>
+              ) : (
+                <Link
+                  to={activeEventId ? `/${activeEventId}/login` : '/master-login'}
+                  className="px-6 py-2.5 bg-gradient-to-r from-[#BD9F67]/20 to-[#BD9F67]/10 border border-[#BD9F67]/40 text-[#BD9F67] hover:text-white hover:border-[#BD9F67] text-[10px] font-black uppercase tracking-[0.3em] rounded-full transition-all duration-500 flex items-center gap-2 group shadow-xl backdrop-blur-md"
+                >
+                  <LogIn size={14} className="group-hover:translate-x-1 transition-transform" />
+                  Portal Access
+                </Link>
+              )}
+            </div>
+
+            {/* Mobile Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen((p) => !p)}
+              className="md:hidden p-2 rounded-lg hover:bg-[#2f3d45] transition-colors"
+            >
+              {isMobileMenuOpen ? (
+                <X size={24} className="text-[#BD9F67]" />
+              ) : (
+                <Menu size={24} className="text-[#BD9F67]" />
+              )}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 bg-[#1a2529]/98 z-40 backdrop-blur-2xl md:hidden pt-24"
           >
-            <Icon size={18} />
-            <span className="hidden sm:inline-block">{name}</span>
-          </NavLink>
-        ))}
-        {auth ? (
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/20"
-          >
-            <LogOut size={18} />
-            <span className="hidden sm:inline-block">Logout ({auth.user?.name || auth.user?.id})</span>
-          </button>
-        ) : (
-          <NavLink
-            to={activeEventId ? `/${activeEventId}/login` : "/master-login"}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 text-primary hover:text-white hover:bg-primary border border-primary/30 hover:shadow-[0_0_15px_rgba(189,159,103,0.2)]"
-          >
-            <LogIn size={18} />
-            <span className="hidden sm:inline-block">Login</span>
-          </NavLink>
+            <div className="flex flex-col items-center space-y-10 px-6">
+              <div className="text-center">
+                <Logo />
+                <p className="text-[9px] text-[#BD9F67] font-black uppercase tracking-[0.3em] mt-6 opacity-60">
+                  Innovate • Inspire • Impact
+                </p>
+              </div>
+
+              <div className="w-full h-px bg-white/5" />
+
+              <div className="flex flex-col items-center space-y-6 w-full">
+                {/* Base Links */}
+                <div className="flex flex-col items-center space-y-4 w-full">
+                  {navLinks.base.map((link) => (
+                    <Link
+                      key={link.name}
+                      to={link.href}
+                      className={`text-[12px] font-black uppercase tracking-[0.4em] transition-all duration-300 ${location.pathname === link.href ? "text-[#BD9F67]" : "text-white/40"
+                        }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {link.name}
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="w-12 h-px bg-white/10" />
+
+                {/* Event/Workspace Links */}
+                <div className="flex flex-col items-center space-y-4 w-full">
+                  {[...navLinks.eventLinks, ...navLinks.workspaceLinks].map((link) => (
+                    <Link
+                      key={link.name}
+                      to={link.href}
+                      className={`flex items-center gap-3 text-[12px] font-black uppercase tracking-[0.3em] transition-all duration-300 px-8 py-3 rounded-xl border ${location.pathname === link.href ? "text-[#BD9F67] border-[#BD9F67]/40 bg-[#BD9F67]/5" : "text-white/60 border-white/5"
+                        }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {link.icon && <link.icon size={16} />}
+                      {link.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="w-full pt-6">
+                {!auth ? (
+                  <Link
+                    to={activeEventId ? `/${activeEventId}/login` : '/master-login'}
+                    className="w-full py-4 bg-gradient-to-r from-[#BD9F67]/20 to-[#BD9F67]/10 border border-[#BD9F67]/30 text-[#BD9F67] text-center font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 backdrop-blur-xl shadow-xl"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <LogIn size={18} />
+                    Portal Access
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleLogout}
+                    className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-500 font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3"
+                  >
+                    <LogOut size={18} />
+                    Terminal Exit
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
         )}
-      </div>
-    </nav>
+      </AnimatePresence>
+
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slideDown {
+          animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+    </header>
   );
 };
 

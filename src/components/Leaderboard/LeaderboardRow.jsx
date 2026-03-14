@@ -29,8 +29,8 @@ const LeaderboardRow = ({ team, index, isRevealed }) => {
       transition={{ type: 'spring', stiffness: 300, damping: 28, delay: index * 0.04 }}
       className={cn(
         'w-full rounded-2xl border transition-all duration-300 overflow-hidden backdrop-blur-sm',
-        rankStyle 
-          ? `${rankStyle.border} ${rankStyle.bg} bg-accent/30 shadow-lg` 
+        rankStyle
+          ? `${rankStyle.border} ${rankStyle.bg} bg-accent/30 shadow-lg`
           : 'border-white/5 bg-accent/20 hover:bg-accent/40 hover:border-white/10'
       )}
     >
