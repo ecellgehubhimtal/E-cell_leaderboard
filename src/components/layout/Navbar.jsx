@@ -3,6 +3,7 @@ import { Menu, X, LogOut, User, Trophy, LogIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMockDB } from '../../context/FirebaseDBContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { cn } from "../../utils/cn";
 
 const Navbar = () => {
   const { auth, logout, activeEventId, eventData } = useMockDB();
@@ -62,7 +63,7 @@ const Navbar = () => {
       </div>
       {showText && (
         <div className="flex flex-col">
-          <span className="text-xl sm:text-2xl font-black text-[#BD9F67] tracking-tight leading-none mb-0.5">
+          <span className="text-lg sm:text-2xl font-black text-[#BD9F67] tracking-tighter sm:tracking-tight leading-none mb-0.5">
             Entrepreneurship Cell
           </span>
           <div className="flex items-center gap-1.5 overflow-hidden">
@@ -164,72 +165,83 @@ const Navbar = () => {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 bg-[#1a2529]/98 z-40 backdrop-blur-2xl md:hidden pt-24"
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed inset-0 bg-[#1a2529] z-40 md:hidden pt-24"
           >
-            <div className="flex flex-col items-center space-y-10 px-6">
-              <div className="text-center">
-                <Logo />
-                <p className="text-[9px] text-[#BD9F67] font-black uppercase tracking-[0.3em] mt-6 opacity-60">
-                  Innovate • Inspire • Impact
-                </p>
-              </div>
+            {/* Background Decor */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -mr-32 -mt-32" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -ml-32 -mb-32" />
 
-              <div className="w-full h-px bg-white/5" />
-
-              <div className="flex flex-col items-center space-y-6 w-full">
-                {/* Base Links */}
-                <div className="flex flex-col items-center space-y-4 w-full">
-                  {navLinks.base.map((link) => (
-                    <Link
-                      key={link.name}
-                      to={link.href}
-                      className={`text-[12px] font-black uppercase tracking-[0.4em] transition-all duration-300 ${location.pathname === link.href ? "text-[#BD9F67]" : "text-white/40"
-                        }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
+            <div className="flex flex-col h-full relative z-10">
+              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-12">
+                
+                {/* Navigation Section */}
+                <div className="space-y-8">
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/40 border-l-2 border-primary/20 pl-4">Navigation</p>
+                  <div className="flex flex-col space-y-6">
+                    {navLinks.base.map((link) => (
+                      <Link
+                        key={link.name}
+                        to={link.href}
+                        className={`text-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 ${location.pathname === link.href ? "text-primary translate-x-2" : "text-white/40 hover:text-white"
+                          }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {link.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="w-12 h-px bg-white/10" />
-
-                {/* Event/Workspace Links */}
-                <div className="flex flex-col items-center space-y-4 w-full">
-                  {[...navLinks.eventLinks, ...navLinks.workspaceLinks].map((link) => (
-                    <Link
-                      key={link.name}
-                      to={link.href}
-                      className={`flex items-center gap-3 text-[12px] font-black uppercase tracking-[0.3em] transition-all duration-300 px-8 py-3 rounded-xl border ${location.pathname === link.href ? "text-[#BD9F67] border-[#BD9F67]/40 bg-[#BD9F67]/5" : "text-white/60 border-white/5"
-                        }`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {link.icon && <link.icon size={16} />}
-                      {link.name}
-                    </Link>
-                  ))}
-                </div>
+                {/* Dashboard Section */}
+                {([...navLinks.eventLinks, ...navLinks.workspaceLinks].length > 0) && (
+                  <div className="space-y-8">
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/40 border-l-2 border-primary/20 pl-4">Your Portal</p>
+                    <div className="grid grid-cols-1 gap-4">
+                      {[...navLinks.eventLinks, ...navLinks.workspaceLinks].map((link) => (
+                        <Link
+                          key={link.name}
+                          to={link.href}
+                          className={`flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 ${location.pathname === link.href 
+                            ? "bg-primary/10 border-primary/40 text-primary" 
+                            : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10"
+                            }`}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("p-2 rounded-lg bg-white/5 text-primary")}>
+                              {link.icon && <link.icon size={18} />}
+                            </div>
+                            <span className="font-black text-sm uppercase tracking-widest">{link.name}</span>
+                          </div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(189,159,103,0.5)]" />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="w-full pt-6">
+              {/* Action Footer */}
+              <div className="p-8 pb-12 bg-white/3 border-t border-white/5 backdrop-blur-xl">
                 {!auth ? (
                   <Link
                     to={activeEventId ? `/${activeEventId}/login` : '/master-login'}
-                    className="w-full py-4 bg-gradient-to-r from-[#BD9F67]/20 to-[#BD9F67]/10 border border-[#BD9F67]/30 text-[#BD9F67] text-center font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3 backdrop-blur-xl shadow-xl"
+                    className="w-full py-5 bg-primary text-secondary font-black uppercase tracking-[0.3em] text-xs rounded-2xl flex items-center justify-center gap-3 shadow-[0_20px_40px_rgba(189,159,103,0.15)] active:scale-95 transition-transform"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <LogIn size={18} />
+                    <LogIn size={20} />
                     Portal Access
                   </Link>
                 ) : (
                   <button
                     onClick={handleLogout}
-                    className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-500 font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-3"
+                    className="w-full py-5 bg-red-500/10 border border-red-500/20 text-red-500 font-black uppercase tracking-[0.3em] text-xs rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-transform"
                   >
-                    <LogOut size={18} />
+                    <LogOut size={20} />
                     Terminal Exit
                   </button>
                 )}

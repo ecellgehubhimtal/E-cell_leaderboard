@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Users, Percent, Trash2, Plus, EyeOff, Eye,
   Save, AlertTriangle, Shield, Gavel, Download, RefreshCw,
-  BarChart2, Crown, CheckCircle, Radio, Lock
+  BarChart2, Crown, CheckCircle, Radio, Lock,
+  Zap, Volume2, Megaphone, Activity
 } from 'lucide-react';
 import { useMockDB } from '../context/FirebaseDBContext';
 import { cn } from '../utils/cn';
@@ -45,22 +46,27 @@ const SmallBtn = ({ danger, children, ...props }) => (
   </button>
 );
 
-/* ─── TABS ──────────────────────────────────────────────── */
 const TABS = [
   { id: 'teams',    label: 'Teams',    icon: Users    },
   { id: 'criteria', label: 'Criteria', icon: Percent  },
-  { id: 'people',   label: 'Judges & Subadmins', icon: Shield  },
-  { id: 'settings', label: 'Event Settings', icon: Settings  },
+  { id: 'people',   label: 'Personnel', icon: Shield   },
+  { id: 'command',  label: 'Command Center', icon: Zap },
+  { id: 'settings', label: 'Event Config', icon: Settings  },
 ];
 
 /* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════ */
+const PRESETS = [
+  "Welcome to E-Cell GEHU Pitchfest 2026! Results will be revealed soon.",
+  "Congratulations to all the winners and participants! Exceptional grit and innovation shown by all."
+];
+
 const Admin = () => {
   const {
     eventData, allEvents, activeEventId,
     teams, addTeam, removeTeam, updateTeamBonus,
-    updateCriteria, updateEventInfo, toggleReveal,
+    updateCriteria, updateEventInfo, toggleReveal, setRevealStatus,
     getLeaderboardData,
     judges, addJudge, removeJudge,
     subadmins, addSubadmin, removeSubadmin,
@@ -107,8 +113,12 @@ const Admin = () => {
     if (eventData) {
       setEditName(eventData.name   || '');
       setEditStatus(eventData.status || 'upcoming');
+      setBroadcastText(eventData.broadcast || '');
     }
   }, [eventData]);
+
+  const [broadcastText, setBroadcastText] = useState('');
+  const [broadcastSaved, setBroadcastSaved] = useState(false);
 
   const liveLeaderboard = getLeaderboardData();
   const isSuspense      = !eventData?.isRevealed;
@@ -202,32 +212,20 @@ const Admin = () => {
           <p className="text-text-muted text-sm mt-1 uppercase tracking-widest font-medium">{eventData?.name || 'Loading...'}</p>
         </div>
 
-        {/* Reveal toggle */}
-        <div className={cn(
-          'flex flex-col items-center gap-3 px-6 py-4 rounded-xl border min-w-[180px] transition-all',
-          isSuspense ? 'border-white/10 bg-white/5' : 'border-primary/40 bg-primary/5'
-        )}>
-          <div className="flex items-center gap-2">
-            {isSuspense
-              ? <Lock size={18} className="text-text-muted" />
-              : <Eye size={18} className="text-primary" />}
-            <span className={cn('font-black text-sm uppercase tracking-widest', isSuspense ? 'text-text-muted' : 'text-primary')}>
-              {isSuspense ? 'Suspense Mode' : 'REVEALED'}
-            </span>
+          <div className="flex flex-col items-center gap-3 px-6 py-4 rounded-xl border min-w-[180px] transition-all border-white/10 bg-white/5 relative overflow-hidden group">
+             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+             <div className="flex items-center gap-2 relative z-10">
+                <Radio size={16} className={cn("animate-pulse", eventData?.revealStatus === 'rolling' ? "text-yellow-400" : eventData?.revealStatus === 'final' ? "text-green-400" : "text-red-400")} />
+                <span className="font-black text-[10px] uppercase tracking-widest text-text-muted">Protocol Status</span>
+             </div>
+             <p className={cn(
+               "text-sm font-black uppercase tracking-widest mt-1",
+               eventData?.revealStatus === 'rolling' ? "text-yellow-400" : eventData?.revealStatus === 'final' ? "text-green-400" : "text-text-solid"
+             )}>
+                {eventData?.revealStatus || 'Locked'}
+             </p>
           </div>
-          <button
-            onClick={() => toggleReveal()}
-            className={cn(
-              'w-full py-2 rounded-lg font-bold text-sm transition-all',
-              isSuspense
-                ? 'bg-primary text-secondary hover:shadow-[0_0_15px_rgba(189,159,103,0.3)]'
-                : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
-            )}
-          >
-            {isSuspense ? '🏆 Trigger Grand Reveal' : '🔒 Lock Leaderboard'}
-          </button>
         </div>
-      </div>
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -531,6 +529,225 @@ const Admin = () => {
                   {judges.length === 0 && <p className="text-text-secondary text-xs italic">No judges added yet.</p>}
                 </div>
               </SectionCard>
+            </div>
+          )}
+
+          {/* ─── COMMAND CENTER (Master/Subadmin) ─── */}
+          {tab === 'command' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Broadcast System */}
+              <SectionCard title="Global Broadcast System" icon={Megaphone} accent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Live Ticker Message</p>
+                    <button 
+                      onClick={async () => {
+                        const newState = !eventData?.showBroadcast;
+                        await updateEventInfo({ showBroadcast: newState });
+                      }}
+                      className={cn(
+                        "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border transition-all",
+                        eventData?.showBroadcast ? "bg-green-500/10 border-green-400/40 text-green-400" : "bg-white/5 border-white/10 text-text-muted"
+                      )}
+                    >
+                      {eventData?.showBroadcast ? "● System Online" : "○ System Offline"}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {PRESETS.map((p, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setBroadcastText(p)}
+                        className="text-[10px] bg-white/5 border border-white/10 text-text-muted hover:text-primary hover:border-primary/40 px-3 py-1.5 rounded-lg transition-all line-clamp-1 max-w-[200px]"
+                      >
+                        Preset {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    value={broadcastText}
+                    onChange={(e) => setBroadcastText(e.target.value)}
+                    placeholder="Enter a message to scroll on the public leaderboard..."
+                    className="w-full h-24 bg-accent/50 border border-white/10 rounded-xl p-4 text-sm text-text-solid focus:outline-none focus:border-primary/50 transition-all resize-none font-medium"
+                  />
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-[10px] text-text-secondary italic">This message will scroll at the top of the leaderboard for all users.</p>
+                    <button
+                      onClick={async () => {
+                         await updateEventInfo({ broadcast: broadcastText.trim() });
+                         setBroadcastSaved(true);
+                         setTimeout(() => setBroadcastSaved(false), 2000);
+                      }}
+                      className={cn(
+                        "px-6 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all",
+                        broadcastSaved ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-primary text-secondary hover:shadow-lg hover:shadow-primary/20"
+                      )}
+                    >
+                      {broadcastSaved ? <><CheckCircle size={14}/> Transmitted</> : <><Radio size={14} className="animate-pulse"/> Broadcast</>}
+                    </button>
+                  </div>
+
+                  {/* Kill Switch */}
+                  <button
+                    onClick={async () => {
+                      await updateEventInfo({ broadcast: "", showBroadcast: false });
+                      setBroadcastText("");
+                    }}
+                    className="w-full mt-2 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <Trash2 size={12} className="group-hover:rotate-12 transition-transform" />
+                    Terminate & Flush Broadcast
+                  </button>
+                </div>
+              </SectionCard>
+
+              {/* Grand Reveal Config */}
+              <SectionCard title="Grand Reveal Protocols" icon={Zap}>
+                <div className="space-y-4">
+                   <div className="grid grid-cols-1 gap-2">
+                      <button
+                        onClick={() => setRevealStatus('locked')}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                          eventData?.revealStatus === 'locked' ? "bg-white/10 border-white/20 ring-1 ring-white/10" : "bg-white/3 border-white/5 hover:border-white/10"
+                        )}
+                      >
+                         <div className="flex items-center gap-3">
+                            <Lock size={18} className={eventData?.revealStatus === 'locked' ? "text-text-solid" : "text-text-muted"} />
+                            <div>
+                               <p className="font-bold text-sm">Standby Mode</p>
+                               <p className="text-[10px] text-text-muted uppercase tracking-widest mt-0.5">Rankings fully hidden</p>
+                            </div>
+                         </div>
+                         {eventData?.revealStatus === 'locked' && <CheckCircle size={16} className="text-primary" />}
+                      </button>
+
+                      <button
+                        onClick={() => setRevealStatus('rolling')}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                          eventData?.revealStatus === 'rolling' ? "bg-yellow-500/10 border-yellow-500/30 ring-1 ring-yellow-500/10" : "bg-white/3 border-white/5 hover:border-yellow-500/20"
+                        )}
+                      >
+                         <div className="flex items-center gap-3">
+                            <RefreshCw size={18} className={cn(eventData?.revealStatus === 'rolling' && "animate-spin text-yellow-400")} />
+                            <div>
+                               <p className="font-bold text-sm">Sequential Tally</p>
+                               <p className="text-[10px] text-text-muted uppercase tracking-widest mt-0.5">Animate ranks 4+ / Score 0 to Max</p>
+                            </div>
+                         </div>
+                         {eventData?.revealStatus === 'rolling' && <div className="w-2 h-2 rounded-full bg-yellow-400 animate-ping" />}
+                      </button>
+
+                      <button
+                        onClick={() => setRevealStatus('final')}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                          eventData?.revealStatus === 'final' ? "bg-green-500/10 border-green-500/30 ring-1 ring-green-500/10" : "bg-white/3 border-white/5 hover:border-green-500/20"
+                        )}
+                      >
+                         <div className="flex items-center gap-3">
+                            <Crown size={18} className={eventData?.revealStatus === 'final' ? "text-green-400" : "text-text-muted"} />
+                            <div>
+                               <p className="font-bold text-sm">The Grand Hall of Fame</p>
+                               <p className="text-[10px] text-text-muted uppercase tracking-widest mt-0.5">Reveal Top 3 Podium</p>
+                            </div>
+                         </div>
+                         {eventData?.revealStatus === 'final' && <CheckCircle size={16} className="text-green-400" />}
+                      </button>
+                   </div>
+
+                   <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-2">
+                         <AlertTriangle size={14} className="text-primary" />
+                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Deployment Note</p>
+                      </div>
+                      <p className="text-[10px] text-text-muted leading-relaxed uppercase font-medium">Stage 2 triggers the score induction sequence. Podium remains obscured until Stage 3.</p>
+                   </div>
+                </div>
+              </SectionCard>
+
+              {/* Live Signal Monitor */}
+              <div className="lg:col-span-2 rounded-2xl border border-white/5 bg-accent/40 backdrop-blur-sm overflow-hidden p-6">
+                <div className="flex items-center justify-between mb-8">
+                   <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
+                         <Activity size={20} className="animate-pulse" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm uppercase tracking-widest text-text-solid">Live Performance Monitor</h3>
+                        <p className="text-[10px] text-text-muted uppercase tracking-widest mt-1">Real-time judging telemetry</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-4">
+                      <div className="text-right">
+                         <p className="text-xs font-black text-text-solid">{judged}/{teams.length}</p>
+                         <p className="text-[8px] text-text-muted uppercase tracking-widest font-black">Sync Points</p>
+                      </div>
+                      <div className="w-px h-8 bg-white/10" />
+                      <div className="text-right">
+                         <p className="text-xs font-black text-primary">SECURE</p>
+                         <p className="text-[8px] text-text-muted uppercase tracking-widest font-black">Data Status</p>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   {/* Column 1: System Health */}
+                   <div className="space-y-4">
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest border-l-2 border-primary pl-2">System Integrity</p>
+                      <div className="p-3 rounded-lg bg-white/3 space-y-3">
+                         <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-text-muted">Cloud Response</span>
+                            <span className="text-green-400 font-mono">14ms</span>
+                         </div>
+                         <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-text-muted">Socket Channels</span>
+                            <span className="text-text-solid font-mono">ENCRYPTED</span>
+                         </div>
+                         <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-text-muted">Auth Tokens</span>
+                            <span className="text-text-solid font-mono">ACTIVE</span>
+                         </div>
+                      </div>
+                   </div>
+
+                   {/* Column 2: Score Distribution */}
+                   <div className="space-y-4">
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest border-l-2 border-blue-400 pl-2">Score Pulse</p>
+                      <div className="flex items-end gap-1 h-14 pb-1">
+                         {[40, 70, 45, 90, 65, 30, 85, 50, 75, 60, 95, 40].map((h, i) => (
+                            <motion.div
+                               key={i}
+                               initial={{ height: 0 }}
+                               animate={{ height: `${h}%` }}
+                               transition={{ delay: i * 0.05, repeat: Infinity, repeatType: 'reverse', duration: 1.5 }}
+                               className="flex-1 bg-gradient-to-t from-primary/20 to-primary/60 rounded-t-sm"
+                            />
+                         ))}
+                      </div>
+                      <p className="text-[9px] text-text-muted text-center uppercase tracking-widest">Aggregate Score Variance</p>
+                   </div>
+
+                   {/* Column 3: Active Agents */}
+                   <div className="space-y-4">
+                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest border-l-2 border-purple-400 pl-2">Active Nodes</p>
+                      <div className="flex -space-x-2 overflow-hidden">
+                         {judges.map((j, i) => (
+                            <div key={i} title={j.name} className="inline-block h-8 w-8 rounded-full ring-2 ring-secondary bg-accent flex items-center justify-center text-[10px] font-black text-primary border border-primary/20">
+                               {j.name.charAt(0)}
+                            </div>
+                         ))}
+                         {judges.length === 0 && <p className="text-[10px] text-text-muted italic">Waiting for judges...</p>}
+                      </div>
+                      <p className="text-[9px] text-text-muted uppercase tracking-widest">Judicial Auth Presence</p>
+                   </div>
+                </div>
+              </div>
+
             </div>
           )}
 

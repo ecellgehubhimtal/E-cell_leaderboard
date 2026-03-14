@@ -16,7 +16,10 @@ const DEFAULT_EVENT_DATA = {
     { id: 'c2', name: 'Feasibility', weight: 40 },
     { id: 'c3', name: 'Pitch Delivery', weight: 30 },
   ],
-  isRevealed: false
+  isRevealed: false,
+  revealStatus: 'locked', // stages: 'locked', 'rolling', 'final'
+  broadcast: "Welcome to E-Cell GEHU Pitchfest 2026! Results will be revealed soon.",
+  showBroadcast: true
 };
 
 
@@ -309,20 +312,31 @@ export const FirebaseDBProvider = ({ children }) => {
   };
 
   // Update event name/status (Master Admin only)
-  const updateEventInfo = async ({ name, status }) => {
+  const updateEventInfo = async (updates) => {
     if (!activeEventId) return;
     // 1️⃣ Update the event's own config doc
-    await setDoc(getEventDoc("config"), { name, status }, { merge: true }).catch(handleFirebaseError);
-    // 2️⃣ Also update the global events list so EventsDirectory shows the new name/status
-    const updatedList = allEvents.map(ev =>
-      ev.id === activeEventId ? { ...ev, name, status } : ev
-    );
-    await setDoc(doc(db, "global", "eventsList"), { list: updatedList }, { merge: true }).catch(handleFirebaseError);
+    await setDoc(getEventDoc("config"), updates, { merge: true }).catch(handleFirebaseError);
+    // 2️⃣ Also update the global events list if necessary (for name/status)
+    if (updates.name || updates.status) {
+      const updatedList = allEvents.map(ev =>
+        ev.id === activeEventId ? { ...ev, ...updates } : ev
+      );
+      await setDoc(doc(db, "global", "eventsList"), { list: updatedList }, { merge: true }).catch(handleFirebaseError);
+    }
+  };
+
+  const setRevealStatus = async (status) => {
+    // Sync with old isRevealed for backward compatibility
+    const isRevealed = status === 'final' || status === 'revealed'; 
+    await setDoc(getEventDoc("config"), { 
+      revealStatus: status,
+      isRevealed: isRevealed 
+    }, { merge: true }).catch(handleFirebaseError);
   };
 
   const toggleReveal = async (status) => {
-    const newStatus = status ?? !eventData.isRevealed;
-    await setDoc(getEventDoc("config"), { isRevealed: newStatus }, { merge: true }).catch(handleFirebaseError);
+    const newStatus = status ?? (eventData.revealStatus === 'final' ? 'locked' : 'final');
+    await setRevealStatus(newStatus);
   };
 
   const submitScore = async (teamId, judgeId, criteriaScores) => {
@@ -449,6 +463,7 @@ export const FirebaseDBProvider = ({ children }) => {
       toggleReveal,
       submitScore,
       getLeaderboardData,
+      setRevealStatus,
       loading
     }}>
       {children}

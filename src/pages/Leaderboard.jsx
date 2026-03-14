@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { Trophy, Sparkles, Lock } from 'lucide-react';
+import { Trophy, Sparkles, Lock, Megaphone, X } from 'lucide-react';
 import LeaderboardRow from '../components/Leaderboard/LeaderboardRow';
 import TeamAvatar from '../components/Leaderboard/TeamAvatar';
 import { useMockDB } from '../context/FirebaseDBContext';
@@ -70,22 +70,65 @@ const PodiumCard = ({ team, podiumIndex, delay }) => {
 const Leaderboard = () => {
   const { eventData, getLeaderboardData, loading } = useMockDB();
   const [data, setData] = useState([]);
-  const isRevealed = eventData?.isRevealed ?? false;
+  const [tallyProgress, setTallyProgress] = useState(0);
+  const [hideTicker, setHideTicker] = useState(false);
+  const revealStatus = eventData?.revealStatus || 'locked';
+  const isRevealed = revealStatus === 'final' || revealStatus === 'rolling';
 
   useEffect(() => {
     const fetchAndSet = () => {
       let rawData = getLeaderboardData();
-      if (!isRevealed) {
+      
+      if (revealStatus === 'locked') {
+        // Alphabetical when locked
         rawData = [...rawData].sort((a, b) => a.name.localeCompare(b.name));
+      } else if (revealStatus === 'rolling') {
+        // Only show 4+ rank and animate scores with per-team "jitter" for real-time shuffling
+        rawData = rawData
+          .filter(t => t.rank > 3)
+          .map(t => {
+            // Unique speed for each team based on their ID/Name to create "overtaking" effect
+            const hash = t.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const speedVar = 0.7 + (hash % 10) / 15; // Each team has different curve
+            const teamProgress = Math.pow(tallyProgress, speedVar);
+            
+            return {
+              ...t,
+              score: (t.score * teamProgress)
+            };
+          })
+          .sort((a, b) => b.score - a.score);
       }
+      // In 'final', rawData is already correctly sorted by getLeaderboardData()
+
       setData(rawData);
     };
+
     fetchAndSet();
     const interval = setInterval(fetchAndSet, 2000);
     return () => clearInterval(interval);
-  }, [getLeaderboardData, isRevealed]);
+  }, [getLeaderboardData, revealStatus, tallyProgress]);
 
-  const podiumTeams = isRevealed && data.length >= 3
+  // Handle tally animation
+  useEffect(() => {
+    if (revealStatus === 'rolling') {
+       let start = null;
+       const duration = 5000; // 5 seconds for full tally
+       const animate = (timestamp) => {
+         if (!start) start = timestamp;
+         const progress = Math.min((timestamp - start) / duration, 1);
+         setTallyProgress(progress);
+         if (progress < 1) requestAnimationFrame(animate);
+       };
+       requestAnimationFrame(animate);
+    } else if (revealStatus === 'final') {
+       setTallyProgress(1); // Set to 1 if we jump straight to final
+    } else {
+       setTallyProgress(0);
+    }
+  }, [revealStatus]);
+
+  const podiumTeams = revealStatus === 'final' && data.length >= 3
     ? [data[1], data[0], data[2]]
     : [];
 
@@ -102,8 +145,40 @@ const Leaderboard = () => {
     );
   }
 
+
+
   return (
     <div className="min-h-screen pt-10 pb-16 px-4 md:px-12 relative overflow-hidden">
+ 
+      {/* ── Global Broadcast Ticker ── */}
+      {eventData?.broadcast && eventData?.showBroadcast && !hideTicker && (
+        <div className="fixed bottom-0 left-0 w-full overflow-hidden bg-primary/10 border-t border-primary/20 backdrop-blur-md z-[100] h-8 flex items-center group">
+          <motion.div
+            key={eventData.broadcast}
+            animate={{ x: [0, -1000] }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="whitespace-nowrap flex items-center gap-12"
+          >
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                  <Megaphone size={10} /> {eventData.broadcast}
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/30" />
+              </div>
+            ))}
+          </motion.div>
+          
+          {/* Local Close Button */}
+          <button 
+            onClick={() => setHideTicker(true)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 bg-secondary/80 border border-white/10 rounded-full flex items-center justify-center text-text-muted hover:text-white hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all z-10"
+            title="Hide for now"
+          >
+            <X size={10} />
+          </button>
+        </div>
+      )}
 
       {/* ── Atmospheric Background ── */}
       {/* Mesh Gradient / Glows */}
@@ -139,41 +214,63 @@ const Leaderboard = () => {
               {eventData?.name}
             </span>
             <h1 className="text-4xl sm:text-7xl font-black text-text-solid tracking-tighter uppercase leading-none">
-              {isRevealed ? <span className="gold-gradient-text tracking-normal">The Hall of Fame</span> : "The Rankings"}
+              {revealStatus === 'final' ? <span className="gold-gradient-text tracking-normal">The Hall of Fame</span> : revealStatus === 'rolling' ? "The Grand Tally" : "The Rankings"}
             </h1>
           </div>
 
           <div className={cn(
             'px-6 py-1.5 rounded-full border transition-all duration-500 text-[9px] font-black uppercase tracking-[0.3em] backdrop-blur-md',
-            isRevealed ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-white/5 border-white/5 text-text-muted'
+            revealStatus === 'final' ? 'bg-green-500/10 border-green-500/30 text-green-400' : revealStatus === 'rolling' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400 animate-pulse' : 'bg-white/5 border-white/5 text-text-muted'
           )}>
-            {isRevealed ? 'Ceremony Live' : 'Calculating Excellence'}
+            {revealStatus === 'final' ? 'Results Finalized' : revealStatus === 'rolling' ? 'Calculating Excellence Live' : 'Analytical Sync In Progress'}
           </div>
         </motion.div>
 
         {/* Podium Section */}
-        {podiumTeams.length === 3 && (
+        {revealStatus === 'final' && podiumTeams.length === 3 ? (
           <div className="w-full pt-4">
             <div className="flex flex-row justify-center items-end gap-2 sm:gap-24">
               <PodiumCard team={podiumTeams[0]} podiumIndex={0} delay={0.15} />
               <PodiumCard team={podiumTeams[1]} podiumIndex={1} delay={0} />
               <PodiumCard team={podiumTeams[2]} podiumIndex={2} delay={0.25} />
             </div>
-
+            
             <div className="mt-12 mb-6 flex items-center justify-center gap-12 text-center">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-              <p className="text-[10px] font-black uppercase tracking-[0.5em] text-text-muted opacity-40">Leaderboard Directive</p>
-              <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/5 to-transparent" />
+               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+               <p className="text-[10px] font-black uppercase tracking-[0.5em] text-text-muted opacity-40">Leaderboard Directive</p>
+               <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/5 to-transparent" />
             </div>
           </div>
-        )}
+        ) : revealStatus === 'rolling' ? (
+          <div className="w-full py-16 flex flex-col items-center justify-center gap-8 relative">
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-[80px] animate-pulse" />
+             
+             <div className="flex items-center gap-6">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-12 h-12 sm:w-20 sm:h-20 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center justify-center relative overflow-hidden group">
+                     <div className="absolute inset-0 bg-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                     <Lock size={20} className="text-primary opacity-40 animate-pulse" />
+                     <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-accent border-2 border-primary/20 flex items-center justify-center text-[10px] font-black text-primary opacity-30">#{i}</div>
+                  </div>
+                ))}
+             </div>
+             
+             <div className="text-center space-y-2 relative z-10">
+                <p className="text-primary font-black uppercase tracking-[0.4em] text-xs">Podium Obscured</p>
+                <p className="text-text-muted text-[10px] uppercase font-bold tracking-widest max-w-xs leading-relaxed opacity-60">
+                   The Top 3 will be revealed once the sequential tally is complete.
+                </p>
+             </div>
+          </div>
+        ) : null}
 
-        {/* Table Section - Wider and Centered */}
         <div className="w-full max-w-5xl space-y-3 pb-20">
           <LayoutGroup>
-            {data.map((team, index) => (
-              <LeaderboardRow key={team.id} team={team} index={index} isRevealed={isRevealed} />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {data.map((team, index) => (
+                <LeaderboardRow key={team.id} team={team} index={index} isRevealed={isRevealed} />
+              ))}
+            </AnimatePresence>
           </LayoutGroup>
 
           {data.length === 0 && (
